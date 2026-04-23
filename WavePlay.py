@@ -2,18 +2,15 @@ import pygame # type: ignore #Foi instalado a biblioteca pygame-ce importada com
 import os 
 from mutagen.mp3 import MP3 #Biblioteca mutagen para obter a duração total da música.
 
-'''Código sem barra de progresso, mas com nome da música, tempo atual e tempo total. 
-Usei a biblioteca mutagen para obter a duração total da música, já que o pygame não fornece essa informação diretamente. 
-O player suporta play/pause, próxima e anterior. A música muda automaticamente quando termina.'''
-
 pygame.init()
 pygame.mixer.init()
 
 # Janela
-screen = pygame.display.set_mode((900, 200))
+screen = pygame.display.set_mode((750, 200))
 pygame.display.set_caption("Player de Música")
 
-font = pygame.font.SysFont(None, 28)
+font = pygame.font.SysFont(None, 20)
+font_pequena = pygame.font.SysFont(None, 16)
 
 # 📂 Pasta com músicas
 pasta = "C:\\Projetos\\backup\\Tarcisio"
@@ -27,6 +24,11 @@ duracao_total = 0
 MUSICA_TERMINOU = pygame.USEREVENT + 1
 pygame.mixer.music.set_endevent(MUSICA_TERMINOU)
 
+def formatar_tempo(segundos):
+    min = segundos // 60
+    seg = segundos % 60
+    return f"{min:02}:{seg:02}"
+
 def tocar(ind):
     global duracao_total, pausado
 
@@ -39,6 +41,16 @@ def tocar(ind):
     pygame.mixer.music.load(caminho)
     pygame.mixer.music.play()
     pausado = False
+
+def desenhar_barra(x, y, largura, altura, progresso):
+    pygame.draw.rect(screen, (50, 50, 50), (x, y, largura, altura), border_radius=8)
+    largura_preenchida = int(largura * progresso)
+    if largura_preenchida > 0:
+        pygame.draw.rect(screen, (0,120,120),
+                         (x, y, largura_preenchida, altura), 
+                         border_radius=8)
+if not playlist:
+    raise ValueError("Nenhuma música encontrada na pasta especificada.")
 
 tocar(indice)
 
@@ -57,21 +69,45 @@ while rodando:
     tempo_ms = pygame.mixer.music.get_pos()
     if tempo_ms < 0:
         tempo_ms = 0
-        #tempo_ms = duracao_total * 1000
+    
+    tempo_atual = tempo_ms // 1000
    
-    tempo_seg = tempo_ms // 1000
-    min_atual = tempo_seg // 60
-    seg_atual = tempo_seg % 60
+    #evita passar da duração da música
+    if tempo_atual > duracao_total:
+        tempo_atual = duracao_total
 
-    # Tempo total
-    min_total = duracao_total // 60
-    seg_total = duracao_total % 60
+    tempo_restante = max(0, duracao_total - tempo_atual)
+    
+    #progresso para barra
+    progresso = 0
+    if duracao_total > 0:
+        progresso = tempo_atual / duracao_total
 
     texto_tempo = font.render(
-        f"Tempo: {min_atual:02}:{seg_atual:02} / {min_total:02}:{seg_total:02}", 
-        True, 
+        f"{formatar_tempo(tempo_atual)} / {formatar_tempo(duracao_total)}",
+        True,
         (200, 200, 200))
     screen.blit(texto_tempo, (20, 60))
+
+    texto_restante = font_pequena.render(
+        f"Restante: {formatar_tempo(tempo_restante)}",
+        True,
+        (180, 180, 180)
+    )
+    screen.blit(texto_restante, (20, 105))
+
+    # Barra de progresso
+    desenhar_barra(20, 145, 710, 25, progresso)
+
+    #Status
+    status = "Pausado" if pausado else "Reproduzindo"
+    texto_status = font_pequena.render(
+        f"Status: {status} | P = Pause/Play | N = Próxima | B = Anterior | ESC = Sair",
+        True,
+        (180, 180, 180)
+    )
+    screen.blit(texto_status, (20, 180))
+
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -81,7 +117,7 @@ while rodando:
             indice = (indice + 1) % len(playlist)
             tocar(indice)
 
-        if event.type == pygame.KEYDOWN:
+        elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 rodando = False
 
